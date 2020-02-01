@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/wzy/catkin_ws/src/car_autodrive/cmake-build-debug/devel/setup.sh

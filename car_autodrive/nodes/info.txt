@@ -1,0 +1,4 @@
+when you add a new python file
+1. add #!/usr/bin/env python 
+2. remmenber to chmod +x {python file}, otherwise,after catkin_make ,you can not find new node create by your new python file
+3.if the turtlebot run out of x-axis line,please only run turtlebot3_teleop to drive it back the x-axis 
