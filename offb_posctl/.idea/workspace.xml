@@ -643,7 +643,17 @@
       <workItem from="1580287345212" duration="3807000" />
       <workItem from="1580299564300" duration="14807000" />
       <workItem from="1580339616629" duration="7390000" />
-      <workItem from="1580349009900" duration="8474000" />
+      <workItem from="1580349009900" duration="9073000" />
+      <workItem from="1580382830118" duration="4368000" />
+      <workItem from="1580389198936" duration="1423000" />
+      <workItem from="1580457551632" duration="1551000" />
+      <workItem from="1580468672601" duration="10673000" />
+      <workItem from="1580518619815" duration="5894000" />
+      <workItem from="1580550047385" duration="1756000" />
+      <workItem from="1580562447969" duration="608000" />
+      <workItem from="1580617603785" duration="609000" />
+      <workItem from="1580630030059" duration="4000" />
+      <workItem from="1580641664390" duration="3434000" />
     </task>
     <servers />
   </component>
@@ -656,9 +666,13 @@
     <option name="LAST_COMMIT_MESSAGE" value="test 2" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="1785" y="416" key="com.intellij.ide.util.TipDialog" timestamp="1580349010015">
+    <state x="2056" y="310" width="424" height="484" key="FileChooserDialogImpl" timestamp="1580617611646">
       <screen x="1280" y="0" width="1920" height="1080" />
     </state>
-    <state x="1785" y="416" key="com.intellij.ide.util.TipDialog/1280.0.1920.1080/0.27.1280.997@1280.0.1920.1080" timestamp="1580349010015" />
+    <state x="2056" y="310" width="424" height="484" key="FileChooserDialogImpl/1280.0.1920.1080/0.27.1280.997@1280.0.1920.1080" timestamp="1580617611646" />
+    <state x="1785" y="416" key="com.intellij.ide.util.TipDialog" timestamp="1580630030356">
+      <screen x="1280" y="0" width="1920" height="1080" />
+    </state>
+    <state x="1785" y="416" key="com.intellij.ide.util.TipDialog/1280.0.1920.1080/0.27.1280.997@1280.0.1920.1080" timestamp="1580630030356" />
   </component>
 </project>

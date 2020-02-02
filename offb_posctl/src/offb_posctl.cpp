@@ -56,6 +56,7 @@ using namespace Eigen;
 mavros_msgs::State current_state;           //无人机当前状态
 nav_msgs::Odometry pose_drone_odom;       //读入的无人机当前位置
 nav_msgs::Odometry pose_car_odom;       //读入car当前位置
+geometry_msgs::Twist vel_car_odom;      // read car vel
 geometry_msgs::TwistStamped vel_drone;      //读入的无人机当前速度
 //geometry_msgs::PoseStamped att_drone;       //读入的无人机姿态
 geometry_msgs::Vector3 angle_receive;       //读入的无人机姿态（欧拉角）
@@ -70,13 +71,26 @@ mavros_msgs::Thrust target_thrust_msg;
 std_msgs::Float64 plane_real_alt;
 mavros_msgs::AttitudeTarget target_atti_thrust_msg;
 
+//variable for plotting plane pose
+geometry_msgs::PoseStamped plane_pose_plot;
+
+
 float thrust_target;        //期望推力
 float Yaw_Init;
 float Yaw_Locked = 0;           //锁定的偏航角(一般锁定为0)
 bool got_initial_point = false;
 PID PIDVX, PIDVY, PIDVZ;    //声明PID类
+PID PID_err_vx,PID_err_vy;  //the velocity feedback between car and plane
 Parameter param;
 std::ofstream logfile;
+std_msgs::Bool enable_getParam;
+float plane_roll,plane_pitch,plane_yaw;
+float PX_P;
+float VX_P,VX_I,VX_D;
+float VX_ERR_P,VX_ERR_I,VX_ERR_D;
+float PZ_P;
+float VZ_P,VZ_I,VZ_D;
+float VZ_ERR_P,VZ_ERR_I,VZ_ERR_D;
 
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>声 明 函 数<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -106,11 +120,18 @@ void car_pos_cb(const nav_msgs::Odometry::ConstPtr &msg){
     pose_car_odom = *msg;
     plane_expected_position.x = pose_car_odom.pose.pose.position.x - 3 -1; //-1 means axis difference
     plane_expected_position.y = pose_car_odom.pose.pose.position.y -1; //-1 means axis difference
-    plane_expected_position.z = pose_car_odom.pose.pose.position.z + 1;
+    plane_expected_position.z = pose_car_odom.pose.pose.position.z + 1.5;
+}
+void car_vel_cb(const geometry_msgs::Twist::ConstPtr &msg){
+    vel_car_odom = *msg;
 }
 
 void plane_alt_cb(const std_msgs::Float64::ConstPtr &msg){
     plane_real_alt = *msg;
+}
+
+void param_load_cb(const std_msgs::Bool::ConstPtr &msg){
+    enable_getParam = *msg;
 }
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>主 函 数<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 int main(int argc, char **argv)
@@ -127,12 +148,15 @@ int main(int argc, char **argv)
     ros::Subscriber plane_position_pose_sub = nh.subscribe<nav_msgs::Odometry>("mavros/local_position/odom", 10, plane_pos_cb);
     ros::Subscriber plane_velocity_sub = nh.subscribe<geometry_msgs::TwistStamped>("mavros/local_position/velocity_local", 10, plane_vel_cb);
     ros::Subscriber car_position_sub = nh.subscribe<nav_msgs::Odometry>("odom",10,car_pos_cb);
+    ros::Subscriber car_vel_sub = nh.subscribe<geometry_msgs::Twist>("cmd_vel",10,car_vel_cb);
     ros::Subscriber plane_alt_sub = nh.subscribe<std_msgs::Float64>("mavros/global_position/rel_alt",10,plane_alt_cb);
+    ros::Subscriber enable_getParam_sub = nh.subscribe<std_msgs::Bool>("enable_getParam",2,param_load_cb);
     // 【发布】飞机姿态/拉力信息 坐标系:NED系
 //    ros::Publisher target_attitude_pub = nh.advertise<geometry_msgs::PoseStamped>("mavros/setpoint_attitude/attitude", 10);
 //    ros::Publisher target_thrust_pub = nh.advertise<mavros_msgs::Thrust>("mavros/setpoint_attitude/thrust",10);
 //    ros::Publisher target_pos_pub = nh.advertise<geometry_msgs::PoseStamped>("mavros/setpoint_position/local", 10);
     ros::Publisher target_atti_thrust_pub = nh.advertise<mavros_msgs::AttitudeTarget>("mavros/setpoint_raw/attitude",10);
+    ros::Publisher enable_getParam_pub = nh.advertise<std_msgs::Bool>("enable_getParam",2);
     // 频率 [30Hz]
     ros::Rate rate(30.0);
 
@@ -152,6 +176,14 @@ int main(int argc, char **argv)
     PIDVX.set_sat(2, 3, 0);
     PIDVY.set_sat(2, 3, 0);
     PIDVZ.set_sat(2, 5, 0);
+    //set velocity feedback parameter
+    PID_err_vx.setPID(param.vx_error_p, param.vx_error_i, param.vx_error_d);
+    PID_err_vy.setPID(param.vy_error_p, param.vy_error_i, param.vy_error_d);
+
+    // 设置velocity feedback积分上限 控制量最大值 误差死区
+    PID_err_vx.set_sat(2, 3, 0);
+    PID_err_vy.set_sat(2, 3, 0);
+
 
     // 等待和飞控的连接
     while(ros::ok() && current_state.connected == 0)
@@ -287,9 +319,41 @@ int main(int argc, char **argv)
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>主  循  环<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     while(ros::ok())
     {
-        ROS_INFO("LOOP");
         ros::spinOnce();
+        //// in terminal : cd {this_package_path/param}
+        //// rosparam load PIDparam.yaml
+        if(enable_getParam.data == true)
+        {
+            nh.getParam("PX_P", PX_P);
+            nh.getParam("VX_P", VX_P);
+            nh.getParam("VX_I", VX_I);
+            nh.getParam("VX_D", VX_D);
+            nh.getParam("VX_ERR_P", VX_ERR_P);
+            nh.getParam("VX_ERR_I", VX_ERR_I);
+            nh.getParam("VX_ERR_D", VX_ERR_D);
 
+            nh.getParam("PZ_P", PZ_P);
+            nh.getParam("VZ_P", VZ_P);
+            nh.getParam("VZ_I", VZ_I);
+            nh.getParam("VZ_D", VZ_D);
+
+            if (PX_P < 10 && PX_P > -1 && VX_P < 10 && VX_P > -1 && VX_I < 10 && VX_I > -1 && VX_D < 10 && VX_D > -1 &&
+                VX_ERR_P > -1 && VX_ERR_P < 10 && VX_ERR_I > -1 && VX_ERR_I < 10 && VX_ERR_D > -1 && VX_ERR_D < 10) {
+                PIDVX.setPID(VX_P, VX_I, VX_D);
+                PID_err_vx.setPID(VX_ERR_P, VX_ERR_I, VX_ERR_D);
+                param.x_p = PX_P;
+                ROS_INFO("LOAD NEW  X  PARAM !");
+
+            }
+
+            if (PZ_P < 10 && PZ_P > -1 && VZ_P < 10 && VZ_P > -1 && VZ_I < 10 && VZ_I > -1 && VZ_D < 10 && VZ_D > -1) {
+                PIDVZ.setPID(VZ_P, VZ_I, VZ_D);
+                param.z_p = PZ_P;
+                ROS_INFO("LOAD NEW  Z  PARAM !");
+            }
+        }
+
+        ROS_INFO("LOOP");
         float cur_time_02 = get_ros_time(begin_time_02);  // 当前时间
         pix_controller(cur_time_02);                   //控制程序
 
@@ -329,10 +393,20 @@ int pix_controller(float cur_time)
     float vel_xd = param.x_p * error_x;
     float vel_yd = param.y_p * error_y;
     float vel_zd = param.z_p * error_z;
-    vel_target.x = vel_xd;
-    vel_target.y = vel_yd;
+    // calculate velocity error between carn and plane
+    float vel_x_error = vel_car_odom.linear.x - vel_drone.twist.linear.x;
+    float vel_y_error = vel_car_odom.linear.y - vel_drone.twist.linear.y;
+    PID_err_vx.add_error(vel_x_error,cur_time);
+    PID_err_vy.add_error(vel_y_error,cur_time);
+    PID_err_vx.pid_output();
+    PID_err_vy.pid_output();
+    vel_target.x = vel_xd +PID_err_vx.Output;
+    vel_target.y = vel_yd +PID_err_vy.Output;
     vel_target.z = vel_zd;
-
+    std::cout << " VX_P：" <<  PIDVX.Kp << "\tVX_I：" << PIDVX.Ki << "\tVX_D：" << PIDVX.Kd << std::endl;
+//    std::cout << "vel_xd " << vel_xd << std::endl;
+//    std::cout << "PID_err_vx.Output: " << PID_err_vx.Output << std::endl;
+//    std::cout << "vel_target.x : " << vel_target.x << std::endl;
 //速 度 环
     //积分标志位.未进入OFFBOARD时,不累积积分项;进入OFFBOARD时,开始积分.
     PIDVX.start_intergrate_flag = true;
@@ -363,14 +437,20 @@ int pix_controller(float cur_time)
     Vector2f euler_temp= 1/9.8 * A_yaw.inverse() * mat_temp;
     angle_target.x = euler_temp[0];
     angle_target.y = euler_temp[1];
-    std::cout << "angle_target.x: " << angle_target.x << "\tangle_target.y: " << angle_target.y << std::endl;
+//    std::cout << "angle_target.x: " << angle_target.x << "\tangle_target.y: " << angle_target.y << std::endl;
 //    angle_target.z = Yaw_Locked + Yaw_Init;
     angle_target.z = Yaw_Init;
 
     orientation_target = euler2quaternion(angle_target.x, angle_target.y, angle_target.z);
     thrust_target = (float)(0.05 * (9.8 + PIDVZ.Output));   //目标推力值
-    std::cout << "PIDVZ.OUTPUT:  " << PIDVZ.Output << std::endl;
-    std::cout << "thrust_target:  " << thrust_target << std::endl;
+
+    plane_roll = quaternion2euler(pose_drone_odom.pose.pose.orientation.x,pose_drone_odom.pose.pose.orientation.y,pose_drone_odom.pose.pose.orientation.z,pose_drone_odom.pose.pose.orientation.w).y;
+    plane_pitch = quaternion2euler(pose_drone_odom.pose.pose.orientation.x,pose_drone_odom.pose.pose.orientation.y,pose_drone_odom.pose.pose.orientation.z,pose_drone_odom.pose.pose.orientation.w).x;
+    plane_yaw = quaternion2euler(pose_drone_odom.pose.pose.orientation.x,pose_drone_odom.pose.pose.orientation.y,pose_drone_odom.pose.pose.orientation.z,pose_drone_odom.pose.pose.orientation.w).z;
+//    std::cout << "roll: " << plane_roll << "\tpitch: " << plane_pitch << std::endl;
+
+    //    std::cout << "PIDVZ.OUTPUT:  " << PIDVZ.Output << std::endl;
+//    std::cout << "thrust_target:  " << thrust_target << std::endl;
     return 0;
 }
 

@@ -67,6 +67,24 @@ bool Parameter::readParam(const char *addr) {
             vz_d = value[2];
 
         }
+        if (name == "v_err_P")
+        {
+            vx_error_p = value[0];
+            vy_error_p = value[1];
+            vz_error_p = value[2];
+        }
+        if (name == "v_err_I")
+        {
+            vx_error_i = value[0];
+            vy_error_i = value[1];
+            vz_error_i = value[2];
+        }
+        if (name == "v_err_D")
+        {
+            vx_error_d = value[0];
+            vy_error_d = value[1];
+            vz_error_d = value[2];
+        }
 
     }
     std::cout << "read config file successfully!"<<std::endl;

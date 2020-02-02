@@ -29,6 +29,18 @@ public:
     float vy_d;
     float vz_d;
 
+    float vx_error_p;
+    float vy_error_p;
+    float vz_error_p;
+
+    float vx_error_i;
+    float vy_error_i;
+    float vz_error_i;
+
+    float vx_error_d;
+    float vy_error_d;
+    float vz_error_d;
+
 
     bool readParam(const char* addr);
 
