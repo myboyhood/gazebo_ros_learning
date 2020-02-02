@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/wzy/catkin_ws/src/my_gazebo_world/cmake-build-debug/devel/setup.sh

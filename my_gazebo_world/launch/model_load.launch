@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<launch>
+
+<!--vehicle plane model -->
+    <arg name="vehicle" default="iris"/>
+    <arg name="sdf" default="$(find mavlink_sitl_gazebo)/models/$(arg vehicle)/$(arg vehicle).sdf"/>
+    <arg name="est" default="ekf2"/>
+    <env name="PX4_SIM_MODEL" value="$(arg vehicle)" />
+    <env name="PX4_ESTIMATOR" value="$(arg est)" />
+
+    <node name="plane" pkg="gazebo_ros" type="spawn_model" output="screen" args="-sdf -file $(arg sdf) -model $(arg vehicle) -x 1 -y 1 -z 0 -R 0 -P 0 -Y 0"/>
+
+
+    <!--vehicle car model -->
+    <param name="robot_description" command="$(find xacro)/xacro --inorder $(find turtlebot3_description)/urdf/turtlebot3_waffle.urdf.xacro"/>
+
+    <node name="car" pkg="gazebo_ros" type="spawn_model" args="-param robot_description -urdf -model turtlebot3_waffle -x 0 -y 0 -z 0 -R 0 -P 0 -Y 0"/>
+</launch>

@@ -1,0 +1,8 @@
+prefix=/home/wzy/catkin_ws/src/my_gazebo_world/cmake-build-debug/devel
+
+Name: my_gazebo_world
+Description: Description of my_gazebo_world
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 
