@@ -1,0 +1,295 @@
+# section1: plane model
+## part1:how to create a new model:
+1.create a new folder my_iris_fpv_lidar under 
+`~/src/Firmware/Tools/sitl_gazebo/models/`
+2.add two files: model.config and my\_iris\_fpv_lidar.sdf
+3.its content like this
+```
+<?xml version="1.0" ?>
+<sdf version='1.5'>
+  <model name='my_iris_fpv_lidar'>
+
+    <include>
+      <uri>model://iris</uri>
+    </include> 
+
+    <include>
+      <uri>model://lidar</uri>
+      <pose>0 0 -0.05 0 0.03 0</pose>
+    </include>
+    <joint name="lidar_joint" type="fixed">
+      <child>lidar::link</child>
+      <parent>iris::base_link</parent>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+          <upper>0</upper>
+          <lower>0</lower>
+        </limit>
+      </axis>
+    </joint>
+    <include>
+      <uri>model://fpv_cam</uri>
+      <pose>0 0 0 0 0.23 0</pose>
+    </include>
+    <joint name="fpv_cam_joint" type="fixed">
+      <child>fpv_cam::link</child>
+      <parent>iris::base_link</parent>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+          <upper>0</upper>
+          <lower>0</lower>
+        </limit>
+      </axis>
+    </joint>
+
+  </model>
+</sdf>
+```
+
+4.here the lidar is 360-range,and it visual effect is poor. we can modify the model in lidar model.sdf
+```
+          <scan>
+            <horizontal>
+              <samples>3</samples>
+              <resolution>1</resolution>
+              <!--<min_angle>-0</min_angle>
+              <max_angle>0</max_angle>-->
+		<min_angle>-0.1</min_angle>
+		<max_angle>0.1</max_angle>
+            </horizontal>
+          </scan>
+```
+also change its original lib
+```
+        <!--<plugin name="LaserPlugin" filename="libgazebo_lidar_plugin.so">
+          <robotNamespace></robotNamespace>-->
+        <plugin name="laser" filename="libRayPlugin.so" />
+        <plugin name="gazebo_ros_head_rplidar_controller" filename="libgazebo_ros_laser.so">
+```
+
+
+5.model.config is a file to describe the model
+```
+<?xml version="1.0"?>
+<model>
+  <name>my Iris with fpv and rplidar lidar</name>
+  <version>1.0</version>
+  <sdf>my_iris_fpv_lidar.sdf</sdf>
+
+  <author>
+   <name>James Goppertr</name>
+   <email>james.goppert@gmail.com</email>
+  </author>
+
+  <description>
+    This is a model of the 3DR Iris Quadrotor with a fpv and rplidar.
+  </description>
+</model>
+```
+the most imortant line is`<sdf>my_iris_fpv_lidar.sdf</sdf>`
+
+
+## part2:how to load the model in gazebo
+**Notification: I use a launch file to load world, plane model, car model, mavros and px4_sitl**
+add this block in .launch file
+```
+    <arg name="vehicle" default="iris"/>
+    <arg name="my_model" default="my_iris_fpv_lidar"/>
+    <arg name="sdf" default="$(find mavlink_sitl_gazebo)/models/$(arg my_model)/$(arg my_model).sdf"/>
+    <arg name="est" default="ekf2"/>
+    <env name="PX4_SIM_MODEL" value="$(arg vehicle)" />
+    <env name="PX4_ESTIMATOR" value="$(arg est)" />
+    <node name="plane" pkg="gazebo_ros" type="spawn_model" output="screen" args="-sdf -file $(arg sdf) -model $(arg vehicle) -x 1 -y 1 -z 0 -R 0 -P 0 -Y 0"/>
+```
+**caution !!**
+`<arg name="vehicle" default="iris"/>`the vehicle can not be the model created just now,it must be the iris,which is the base model. 
+our model should be used in these two lines:
+```
+<arg name="my_model" default="my_iris_fpv_lidar"/>
+<arg name="sdf" default="$(find mavlink_sitl_gazebo)/models/$(arg my_model)/$(arg my_model).sdf"/>
+```
+
+
+# section2: car model
+## part1: how to create a car model
+I use turtlebot3 model, so please download relevant package from[github_link](https://github.com/ROBOTIS-GIT/turtlebot3)
+I install the metapackage in path `~/catkin_ws/src/`
+gedit this model file `~/catkin_ws/src/turtlebot3_description/urdf/turtlebot3_waffle.urdf.xacro`
+firstly,add laser_reciever model by this block
+```
+  <joint name="receiver_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="base_receiver"/>
+    <origin xyz="-0.2 -0.3  0.9" rpy="0 0 0"/>
+  </joint>
+
+  <link name="base_receiver">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 1.57 0"/>
+      <geometry>
+        <mesh filename="package://turtlebot3_description/meshes/sensors/laser_receiver.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="">
+	<color rgba="0.76 0.2 0.2 1"/>
+      </material>
+    </visual>
+
+    <collision>
+      <origin xyz="-0.2 0 0.3" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="0.05" radius="0.3"/>
+      </geometry>
+    </collision>
+
+    <inertial>
+      <mass value="0.114" />
+      <origin xyz="0 0 0" />
+      <inertia ixx="0.001" ixy="0.0" ixz="0.0"
+               iyy="0.001" iyz="0.0"
+               izz="0.001" />
+    </inertial>
+  </link>
+```
+second, add marker by this block
+```
+  <joint name="top_marker" type="fixed">
+    <parent link="base_link"/>
+    <child link="top_marker_link"/>
+    <origin xyz="-0.2 0 0.95" rpy="0 0 0"/>
+  </joint>
+
+  <link name="top_marker_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.05"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <joint name="bottom_marker" type="fixed">
+    <parent link="base_link"/>
+    <child link="bottom_marker_link"/>
+    <origin xyz="-0.2 0 0.25" rpy="0 0 0"/>
+  </joint>
+
+  <link name="bottom_marker_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.05"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <joint name="left_marker" type="fixed">
+    <parent link="base_link"/>
+    <child link="left_marker_link"/>
+    <origin xyz="-0.2 0.35 0.6" rpy="0 0 0"/>
+  </joint>
+
+  <link name="left_marker_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.05"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <joint name="right_marker" type="fixed">
+    <parent link="base_link"/>
+    <child link="right_marker_link"/>
+    <origin xyz="-0.2 -0.35 0.6" rpy="0 0 0"/>
+  </joint>
+
+  <link name="right_marker_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.05"/>
+      </geometry>
+    </visual>
+  </link>
+```
+
+**caution**
+here we can define the pose relationship between parent and child link,and other properties.
+**Most importantly**
+`<mesh filename="package://turtlebot3_description/meshes/sensors/laser_receiver.stl" scale="0.001 0.001 0.001"/>`
+this line introduces our model in stl, which is created in Solidworks, But what make me surprised is there is a tools called ==sw2urdf==, this tools can directly create model in SW to export urdf.
+**change the color**
+what is weird is I can not define color in `<color rgba="0.76 0.2 0.2 1"/>`,since there is no change in gazebo.
+I notice lines in the model file
+``` 
+<xacro:include filename="$(find turtlebot3_description)/urdf/common_properties.xacro"/>
+<xacro:include filename="$(find turtlebot3_description)/urdf/turtlebot3_waffle.gazebo.xacro"/>
+```
+the first define color properties,such as
+```
+  <material name="red">
+    <color rgba="0.8 0.0 0.0 1.0"/>
+  </material>
+
+```
+the second define what to show in gazebo
+I add block following:
+```
+  <gazebo reference="top_marker_link">
+    <material>Gazebo/Red</material>
+  </gazebo>
+
+  <gazebo reference="bottom_marker_link">
+    <material>Gazebo/Red</material>
+  </gazebo>
+
+  <gazebo reference="left_marker_link">
+    <material>Gazebo/Red</material>
+  </gazebo>
+
+  <gazebo reference="right_marker_link">
+    <material>Gazebo/Red</material>
+  </gazebo>
+```
+**finally, the addition contents in the second file change the color of marker**
+
+## part2:how to load car in gazebo
+add this block in .launch file
+```
+    <param name="robot_description" command="$(find xacro)/xacro --inorder $(find turtlebot3_description)/urdf/turtlebot3_waffle.urdf.xacro"/>
+    <node name="car" pkg="gazebo_ros" type="spawn_model" args="-param robot_description -urdf -model turtlebot3_waffle -x 0 -y 0 -z 0"/>
+```
+
+# section3:the world model in launch flie
+use this block
+```
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+      <arg name="world_name" default="$(find my_gazebo_world)/world/my_world.world"/>
+      <arg name="paused" value="false"/>
+      <arg name="use_sim_time" value="true"/>
+      <arg name="gui" value="true"/>
+      <arg name="headless" value="false"/>
+      <arg name="debug" value="false"/>
+      <arg name="verbose" default="true"/>
+      <arg name="respawn_gazebo" default="false"/>
+    </include>
+```
+**notice the update rate in gazebo, so need to modify my_world.world**
+```
+      <max_step_size>0.004</max_step_size>
+      <real_time_factor>1</real_time_factor>
+      <real_time_update_rate>250</real_time_update_rate>
+```
+since px4 sitl require 250HZ update rate, so please ensure the world update rate is modified at 250 and 0.004.
+
+# the whole project has been uploaded into my github,[github_link](https://github.com/myboyhood/gazebo_ros_learning/tree/my_gazebo_world_v1.0),the car control code is in [car_autodrive branch](https://github.com/myboyhood/gazebo_ros_learning/tree/car_autodrive)
+
+
+
+
+
+
+
+
