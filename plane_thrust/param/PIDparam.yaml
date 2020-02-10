@@ -1,0 +1,15 @@
+PX_P: 5
+
+VX_P: 2
+VX_I: 0.6
+VX_D: 0.5
+
+VX_ERR_P: 6
+VX_ERR_I: 0.6
+VX_ERR_D: 0.2
+
+PZ_P: 2
+
+VZ_P: 0.5
+VZ_I: 0.3
+VZ_D: 0.5
